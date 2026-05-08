@@ -2,6 +2,8 @@
 
 Webová aplikace pro práci s měnovými kurzy z REST API exchangerate.host.
 
+**Live demo:** https://stin-currency-app-39mi.onrender.com/
+
 ## Technologie
 - Python 3.13
 - FastAPI
