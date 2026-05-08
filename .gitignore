@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+
+# Virtual environment
+.venv/
+
+# Environment variables
+.env
+
+# OS
+Thumbs.db
+desktop.ini
