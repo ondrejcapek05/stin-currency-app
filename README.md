@@ -25,3 +25,7 @@ Aplikace poběží na http://localhost:8000
 ```bash
 pytest --cov=app --cov-branch --cov-report=term-missing
 ```
+
+## Databáze
+
+SQLite soubor `app.db` se vytvoří automaticky při prvním spuštění. Na Renderu se při každém deploy resetuje.
