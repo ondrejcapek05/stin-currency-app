@@ -10,6 +10,10 @@ __pycache__/
 # Environment variables
 .env
 
+# Database
+*.db
+*.db-journal
+
 # OS
 Thumbs.db
 desktop.ini
