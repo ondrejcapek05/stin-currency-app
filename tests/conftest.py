@@ -7,6 +7,7 @@ os.environ["DATABASE_URL"] = "sqlite://"
 from collections.abc import Generator
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel
 
@@ -36,3 +37,24 @@ def db_session(db_engine: Engine) -> Generator[Session, None, None]:
     """Vrátí testovací databázovou session."""
     with Session(db_engine) as session:
         yield session
+
+
+@pytest.fixture
+def client() -> TestClient:
+    """Vrátí testovacího klienta aplikace."""
+    from app.main import app
+    return TestClient(app)
+
+
+@pytest.fixture
+def auth_client(client: TestClient, fake_settings: Settings) -> TestClient:
+    """Vrátí testovacího klienta přihlášeného jako admin."""
+    response = client.post(
+        "/login",
+        data={
+            "username": fake_settings.admin_username,
+            "password": fake_settings.admin_password,
+        },
+    )
+    assert response.status_code == 200
+    return client
