@@ -14,6 +14,12 @@ class Settings:
             "EXCHANGERATE_API_URL",
             "https://api.exchangerate.host",
         )
+        self.admin_username: str = os.getenv("ADMIN_USERNAME", "admin")
+        self.admin_password: str = os.getenv("ADMIN_PASSWORD", "stin2026")
+        self.session_secret: str = os.getenv(
+            "SESSION_SECRET",
+            "change-me-in-production",
+        )
 
     def validate(self) -> None:
         """Ověří, že povinné proměnné jsou nastavené."""
