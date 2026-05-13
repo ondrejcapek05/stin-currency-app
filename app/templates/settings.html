@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>{{ t('settings.title', lang) }}</h1>
+
+{% if saved %}
+<p style="color: green">{{ t('settings.saved', lang) }}</p>
+{% endif %}
+
+{% if error %}
+<p style="color: red">{{ t(error, lang) }}</p>
+{% endif %}
+
+<form method="post" action="/settings">
+    <label>{{ t('settings.base_currency', lang) }}
+        <select name="base_currency" required>
+            {% for c in available_currencies %}
+            <option value="{{ c }}" {% if c == settings.base_currency %}selected{% endif %}>
+                {{ c }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <fieldset>
+        <legend>{{ t('settings.selected_currencies', lang) }}</legend>
+
+        {% for c in available_currencies %}
+        <label>
+            <input type="checkbox" name="selected_currencies" value="{{ c }}"
+                {% if c in selected_list %}checked{% endif %}>
+            {{ c }}
+        </label>
+        {% endfor %}
+    </fieldset>
+
+    <fieldset>
+        <legend>{{ t('settings.language', lang) }}</legend>
+        <label>
+            <input type="radio" name="language" value="cs" {% if settings.language == "cs" %}checked{% endif %}>
+            Čeština
+        </label>
+        <label>
+            <input type="radio" name="language" value="en" {% if settings.language == "en" %}checked{% endif %}>
+            English
+        </label>
+    </fieldset>
+
+    <button type="submit">{{ t('settings.save', lang) }}</button>
+</form>
+{% endblock %}

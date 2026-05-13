@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article style="max-width: 400px; margin: 2rem auto;">
+    <h1>{{ t('login.title', lang) }}</h1>
+
+    {% if error %}
+    <p style="color: red">{{ t('login.error_invalid', lang) }}</p>
+    {% endif %}
+
+    <form method="post" action="/login">
+        <label>{{ t('login.username', lang) }}
+            <input type="text" name="username" required autofocus>
+        </label>
+
+        <label>{{ t('login.password', lang) }}
+            <input type="password" name="password" required>
+        </label>
+
+        <button type="submit">{{ t('login.submit', lang) }}</button>
+    </form>
+</article>
+{% endblock %}
