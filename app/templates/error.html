@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article style="max-width: 600px; margin: 2rem auto; text-align: center;">
+    <h1>⚠ {{ t('error.title', lang) }}</h1>
+    <p>{{ t('error.message', lang) }}</p>
+    <a href="/dashboard" role="button">{{ t('error.retry', lang) }}</a>
+</article>
+{% endblock %}

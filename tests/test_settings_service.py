@@ -30,7 +30,7 @@ def test_update_settings_changes_fields(db_session: Session) -> None:
     db_session.add(UserSettings())
     db_session.commit()
 
-    updated = update_settings(db_session, "CZK", ["USD", "EUR", "GBP"])
+    updated = update_settings(db_session, "CZK", ["USD", "EUR", "GBP"], "cs")
 
     assert updated.base_currency == "CZK"
     assert updated.selected_currencies == "USD,EUR,GBP"
@@ -41,15 +41,25 @@ def test_update_settings_joins_currencies_as_csv(db_session: Session) -> None:
     db_session.add(UserSettings())
     db_session.commit()
 
-    updated = update_settings(db_session, "EUR", ["USD", "EUR"])
+    updated = update_settings(db_session, "EUR", ["USD", "EUR"], "cs")
 
     assert updated.selected_currencies == "USD,EUR"
 
 
 def test_update_settings_creates_if_missing(db_session: Session) -> None:
     """Test vytvoření nastavení při prázdné databázi."""
-    updated = update_settings(db_session, "USD", ["EUR", "CZK"])
+    updated = update_settings(db_session, "USD", ["EUR", "CZK"], "cs")
 
     assert updated.id == 1
     assert updated.base_currency == "USD"
     assert updated.selected_currencies == "EUR,CZK"
+
+
+def test_update_settings_changes_language(db_session: Session) -> None:
+    """Test změny jazyka."""
+    db_session.add(UserSettings())
+    db_session.commit()
+
+    updated = update_settings(db_session, "USD", ["EUR"], "en")
+
+    assert updated.language == "en"
