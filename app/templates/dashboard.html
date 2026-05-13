@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+{% endblock %}
+
+{% block content %}
+<h1>{{ t('dashboard.title') }}</h1>
+
+<div class="grid">
+    <article>
+        <header>{{ t('dashboard.strongest') }}</header>
+        <h2>{{ strongest }}</h2>
+    </article>
+
+    <article>
+        <header>{{ t('dashboard.weakest') }}</header>
+        <h2>{{ weakest }}</h2>
+    </article>
+</div>
+
+<article>
+    <header>{{ t('dashboard.title') }} ({{ base_currency }})</header>
+
+    <table>
+        <thead>
+            <tr>
+                <th>{{ t('dashboard.currency') }}</th>
+                <th>{{ t('dashboard.rate') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for currency, rate in rates.items() %}
+            <tr>
+                <td>{{ currency }}</td>
+                <td>{{ '%.4f'|format(rate) }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</article>
+
+<article>
+    <header>{{ t('dashboard.chart_title') }} ({{ base_currency }})</header>
+
+    <form method="get" action="/dashboard">
+        <div class="grid">
+            <label>{{ t('dashboard.currency') }}
+                <select name="symbol" onchange="this.form.submit()">
+                    {% for c in chart_choices %}
+                    <option value="{{ c }}" {% if c == chart_symbol %}selected{% endif %}>
+                        {{ c }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label>{{ t('dashboard.period') }}
+                <select name="period" onchange="this.form.submit()">
+                    <option value="7" {% if period == 7 %}selected{% endif %}>
+                        {{ t('dashboard.period_7') }}
+                    </option>
+                    <option value="30" {% if period == 30 %}selected{% endif %}>
+                        {{ t('dashboard.period_30') }}
+                    </option>
+                    <option value="90" {% if period == 90 %}selected{% endif %}>
+                        {{ t('dashboard.period_90') }}
+                    </option>
+                </select>
+            </label>
+        </div>
+    </form>
+
+    <canvas id="rateChart"></canvas>
+
+    <p><strong>{{ t('dashboard.average') }}:</strong>
+    {% if chart_average is not none %}{{ '%.4f'|format(chart_average) }}{% else %}—{% endif %}
+    </p>
+</article>
+
+<script>
+const ctx = document.getElementById('rateChart');
+
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ chart_labels|tojson }},
+        datasets: [{
+            label: '{{ chart_symbol }}',
+            data: {{ chart_data|tojson }},
+            borderWidth: 2,
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true
+    }
+});
+</script>
+{% endblock %}

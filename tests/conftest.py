@@ -9,25 +9,32 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
-from sqlmodel import Session, SQLModel
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, create_engine
 
 from app.config import Settings
-from app.database import make_engine
 
 
 @pytest.fixture
 def fake_settings() -> Settings:
-    """Testovací nastavení s fake API klíčem a URL pro mocky."""
+    """Testovací nastavení aplikace."""
     settings = Settings()
     settings.api_key = "test-key-for-mocks"
     settings.api_base_url = "https://api.exchangerate.host"
+    settings.admin_username = "admin"
+    settings.admin_password = "stin2026"
+    settings.session_secret = "test-session-secret"
     return settings
 
 
 @pytest.fixture
 def db_engine() -> Engine:
     """Vytvoří testovací databázový engine."""
-    engine = make_engine("sqlite://")
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     SQLModel.metadata.create_all(engine)
     return engine
 
@@ -40,10 +47,29 @@ def db_session(db_engine: Engine) -> Generator[Session, None, None]:
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client(
+    db_engine: Engine,
+    fake_settings: Settings,
+) -> Generator[TestClient, None, None]:
     """Vrátí testovacího klienta aplikace."""
-    from app.main import app
-    return TestClient(app)
+    from app.config import get_settings
+    from app.main import app, get_db_session
+
+    def _override_session() -> Generator[Session, None, None]:
+        with Session(db_engine) as session:
+            yield session
+
+    def _override_settings() -> Settings:
+        return fake_settings
+
+    app.dependency_overrides[get_db_session] = _override_session
+    app.dependency_overrides[get_settings] = _override_settings
+
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.pop(get_db_session, None)
+        app.dependency_overrides.pop(get_settings, None)
 
 
 @pytest.fixture
@@ -55,6 +81,8 @@ def auth_client(client: TestClient, fake_settings: Settings) -> TestClient:
             "username": fake_settings.admin_username,
             "password": fake_settings.admin_password,
         },
+        follow_redirects=False,
     )
-    assert response.status_code == 200
+
+    assert response.status_code == 303
     return client

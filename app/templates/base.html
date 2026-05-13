@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t('app.title') }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <main class="container">
+        {% if request.session.get('user') %}
+        <nav>
+            <ul>
+                <li><strong>{{ t('app.title') }}</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/dashboard">{{ t('nav.dashboard') }}</a></li>
+                <li><a href="/settings">{{ t('nav.settings') }}</a></li>
+                <li>
+                    <form method="post" action="/logout" style="display:inline">
+                        <button type="submit" class="secondary">{{ t('nav.logout') }}</button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
