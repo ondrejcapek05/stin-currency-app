@@ -21,11 +21,13 @@ def update_settings(
     session: Session,
     base_currency: str,
     selected_currencies: list[str],
+    language: str,
 ) -> UserSettings:
     """Aktualizuje uživatelské nastavení."""
     settings = get_or_create_settings(session)
     settings.base_currency = base_currency
     settings.selected_currencies = ",".join(selected_currencies)
+    settings.language = language
     session.add(settings)
     session.commit()
     session.refresh(settings)
