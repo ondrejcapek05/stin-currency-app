@@ -4,10 +4,11 @@ from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session
+from sqlmodel import Session, select
 
+from app.exceptions import ApiConnectionError
 from app.main import app, get_rate_service
-from app.models import UserSettings
+from app.models import ExchangeRate, LogEntry, UserSettings
 
 
 class FakeService:
@@ -35,6 +36,23 @@ class FakeService:
         return self.period_rates
 
 
+class FailingService:
+    """Fake RateService, který simuluje výpadek API."""
+
+    def get_live_rates(self, symbols: list[str]) -> dict[str, float]:
+        """Vyhodí výjimku."""
+        raise ApiConnectionError("simulated live failure")
+
+    def get_rates_for_period(
+        self,
+        start: date,
+        end: date,
+        symbols: list[str],
+    ) -> dict[date, dict[str, float]]:
+        """Vyhodí výjimku."""
+        raise ApiConnectionError("simulated period failure")
+
+
 @pytest.fixture
 def override_rate_service() -> Generator[
     Callable[
@@ -58,13 +76,26 @@ def override_rate_service() -> Generator[
     app.dependency_overrides.pop(get_rate_service, None)
 
 
+@pytest.fixture
+def override_failing_service() -> Generator[None, None, None]:
+    """Nahradí RateService službou simulující výpadek."""
+    app.dependency_overrides[get_rate_service] = lambda: FailingService()
+    yield
+    app.dependency_overrides.pop(get_rate_service, None)
+
+
 def _seed_settings(
     db_session: Session,
     base: str = "USD",
     selected: str = "EUR,CZK,GBP",
+    language: str = "cs",
 ) -> None:
     """Vloží testovací nastavení."""
-    db_session.add(UserSettings(base_currency=base, selected_currencies=selected))
+    db_session.add(UserSettings(
+        base_currency=base,
+        selected_currencies=selected,
+        language=language,
+    ))
     db_session.commit()
 
 
@@ -231,7 +262,7 @@ def test_dashboard_chart_symbol_default_is_strongest(
         None,
     ],
 ) -> None:
-    """Test výchozího symbolu grafu."""
+    """Test výchozí měny grafu."""
     _seed_settings(db_session, base="USD", selected="EUR,CZK")
     live = {"EUR": 0.9, "CZK": 24.0}
     period = _period_rates(["EUR", "CZK"], 7)
@@ -240,7 +271,7 @@ def test_dashboard_chart_symbol_default_is_strongest(
     response = auth_client.get("/dashboard")
 
     assert response.status_code == 200
-    assert "label: 'EUR'" in response.text
+    assert 'label: "EUR"' in response.text
 
 
 def test_dashboard_handles_usd_in_selected_with_non_usd_base(
@@ -269,3 +300,100 @@ def test_dashboard_handles_usd_in_selected_with_non_usd_base(
     assert response.status_code == 200
     assert "USD" in response.text
     assert "CZK" in response.text
+
+
+def test_dashboard_renders_english_when_user_lang_en(
+    auth_client: TestClient,
+    db_session: Session,
+    override_rate_service: Callable[
+        [dict[str, float], dict[date, dict[str, float]]],
+        None,
+    ],
+) -> None:
+    """Test anglického vykreslení dashboardu."""
+    _seed_settings(db_session, base="USD", selected="EUR", language="en")
+    live = {"EUR": 0.9}
+    period = _period_rates(["EUR"], 7)
+    override_rate_service(live, period)
+
+    response = auth_client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert "Current rates" in response.text
+    assert "Strongest currency" in response.text
+    assert "Aktuální kurzy" not in response.text
+
+
+def test_dashboard_fallback_uses_cache_when_api_fails(
+    auth_client: TestClient,
+    db_session: Session,
+    override_failing_service: None,
+) -> None:
+    """Test fallbacku na cache při selhání API."""
+    _seed_settings(db_session, base="USD", selected="EUR")
+    cached_date = date.today() - timedelta(days=1)
+    db_session.add(ExchangeRate(
+        base="USD", target="EUR", rate=0.91, date=cached_date,
+    ))
+    db_session.commit()
+
+    response = auth_client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert "Používáme poslední" in response.text
+    assert cached_date.isoformat() in response.text
+    assert "0.9100" in response.text
+
+
+def test_dashboard_error_page_when_api_fails_and_cache_empty(
+    auth_client: TestClient,
+    db_session: Session,
+    override_failing_service: None,
+) -> None:
+    """Test chybové stránky při prázdné cache a selhání API."""
+    _seed_settings(db_session, base="USD", selected="EUR")
+
+    response = auth_client.get("/dashboard")
+
+    assert response.status_code == 503
+    assert "Služba nedostupná" in response.text
+
+
+def test_dashboard_logs_api_failure(
+    auth_client: TestClient,
+    db_session: Session,
+    override_failing_service: None,
+) -> None:
+    """Test logování chyb při selhání API."""
+    _seed_settings(db_session, base="USD", selected="EUR")
+    db_session.add(ExchangeRate(
+        base="USD", target="EUR", rate=0.91, date=date.today() - timedelta(days=1),
+    ))
+    db_session.commit()
+
+    auth_client.get("/dashboard")
+
+    db_session.expire_all()
+    logs = db_session.exec(select(LogEntry)).all()
+    assert len(logs) >= 1
+    assert logs[0].level == "ERROR"
+    assert "API failure" in logs[0].message
+
+
+def test_dashboard_error_page_when_cache_missing_base_currency(
+    auth_client: TestClient,
+    db_session: Session,
+    override_failing_service: None,
+) -> None:
+    """Test chybové stránky při chybějícím kurzu základní měny v cache."""
+    _seed_settings(db_session, base="EUR", selected="USD,CZK")
+    # cache obsahuje jen CZK, ne EUR potřebnou pro převod
+    db_session.add(ExchangeRate(
+        base="USD", target="CZK", rate=24.0, date=date.today() - timedelta(days=1),
+    ))
+    db_session.commit()
+
+    response = auth_client.get("/dashboard")
+
+    assert response.status_code == 503
+    assert "Služba nedostupná" in response.text

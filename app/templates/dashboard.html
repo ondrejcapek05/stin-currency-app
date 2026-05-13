@@ -5,28 +5,34 @@
 {% endblock %}
 
 {% block content %}
-<h1>{{ t('dashboard.title') }}</h1>
+{% if fallback_warning %}
+<article style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem;">
+    {{ fallback_warning }}
+</article>
+{% endif %}
+
+<h1>{{ t('dashboard.title', lang) }}</h1>
 
 <div class="grid">
     <article>
-        <header>{{ t('dashboard.strongest') }}</header>
+        <header>{{ t('dashboard.strongest', lang) }}</header>
         <h2>{{ strongest }}</h2>
     </article>
 
     <article>
-        <header>{{ t('dashboard.weakest') }}</header>
+        <header>{{ t('dashboard.weakest', lang) }}</header>
         <h2>{{ weakest }}</h2>
     </article>
 </div>
 
 <article>
-    <header>{{ t('dashboard.title') }} ({{ base_currency }})</header>
+    <header>{{ t('dashboard.title', lang) }} ({{ base_currency }})</header>
 
     <table>
         <thead>
             <tr>
-                <th>{{ t('dashboard.currency') }}</th>
-                <th>{{ t('dashboard.rate') }}</th>
+                <th>{{ t('dashboard.currency', lang) }}</th>
+                <th>{{ t('dashboard.rate', lang) }}</th>
             </tr>
         </thead>
         <tbody>
@@ -41,11 +47,11 @@
 </article>
 
 <article>
-    <header>{{ t('dashboard.chart_title') }} ({{ base_currency }})</header>
+    <header>{{ t('dashboard.chart_title', lang) }} ({{ base_currency }})</header>
 
     <form method="get" action="/dashboard">
         <div class="grid">
-            <label>{{ t('dashboard.currency') }}
+            <label>{{ t('dashboard.currency', lang) }}
                 <select name="symbol" onchange="this.form.submit()">
                     {% for c in chart_choices %}
                     <option value="{{ c }}" {% if c == chart_symbol %}selected{% endif %}>
@@ -55,16 +61,16 @@
                 </select>
             </label>
 
-            <label>{{ t('dashboard.period') }}
+            <label>{{ t('dashboard.period', lang) }}
                 <select name="period" onchange="this.form.submit()">
                     <option value="7" {% if period == 7 %}selected{% endif %}>
-                        {{ t('dashboard.period_7') }}
+                        {{ t('dashboard.period_7', lang) }}
                     </option>
                     <option value="30" {% if period == 30 %}selected{% endif %}>
-                        {{ t('dashboard.period_30') }}
+                        {{ t('dashboard.period_30', lang) }}
                     </option>
                     <option value="90" {% if period == 90 %}selected{% endif %}>
-                        {{ t('dashboard.period_90') }}
+                        {{ t('dashboard.period_90', lang) }}
                     </option>
                 </select>
             </label>
@@ -73,7 +79,7 @@
 
     <canvas id="rateChart"></canvas>
 
-    <p><strong>{{ t('dashboard.average') }}:</strong>
+    <p><strong>{{ t('dashboard.average', lang) }}:</strong>
     {% if chart_average is not none %}{{ '%.4f'|format(chart_average) }}{% else %}—{% endif %}
     </p>
 </article>
@@ -86,7 +92,7 @@ new Chart(ctx, {
     data: {
         labels: {{ chart_labels|tojson }},
         datasets: [{
-            label: '{{ chart_symbol }}',
+            label: {{ chart_symbol|tojson }},
             data: {{ chart_data|tojson }},
             borderWidth: 2,
             tension: 0.1
